@@ -1,0 +1,10 @@
+server:
+  port: 8088
+
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+# Igor's test Cognito set up
+          issuer-uri: https://cognito-idp.ca-central-1.amazonaws.com/ca-central-1_kt3xtAQYh
