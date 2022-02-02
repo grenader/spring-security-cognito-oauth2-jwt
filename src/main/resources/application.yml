@@ -6,5 +6,5 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-# Igor's test Cognito set up
+          # Igor's test Cognito set up
           issuer-uri: https://cognito-idp.ca-central-1.amazonaws.com/ca-central-1_kt3xtAQYh
