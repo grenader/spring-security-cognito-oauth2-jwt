@@ -1,5 +1,8 @@
 package com.grenader.cognito_oath2_jwt;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.security.authentication.AuthenticationManagerResolver;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
@@ -9,12 +12,16 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.web.cors.CorsConfiguration;
 
+import javax.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
 @EnableWebSecurity
 public class JWTCustomSecurityConfiguration extends WebSecurityConfigurerAdapter {
+
+    @Autowired
+    private AuthenticationManagerResolver<HttpServletRequest> authenticationManagerResolver;
 
     static class MyJwtAuthenticationConverter extends JwtAuthenticationConverter {
         @Override
@@ -65,10 +72,19 @@ public class JWTCustomSecurityConfiguration extends WebSecurityConfigurerAdapter
                 .authorizeRequests()
                 .antMatchers("/actuator/**").permitAll()
                 .and()
+                .oauth2ResourceServer(
+                        oauth2 -> oauth2.jwt(jwt ->
+                                {
+                                    jwt.jwtAuthenticationConverter(new MyJwtAuthenticationConverter());
+                                })
+                                .authenticationManagerResolver(this.authenticationManagerResolver)
+                );
+/*
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt ->
                 {
                     jwt.jwtAuthenticationConverter(new MyJwtAuthenticationConverter());
                 }));
+*/
     }
 
 }
