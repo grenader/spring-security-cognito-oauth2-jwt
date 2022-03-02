@@ -1,27 +1,85 @@
 package com.grenader.cognito_oath2_jwt;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Bean;
-import org.springframework.security.authentication.AuthenticationManagerResolver;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtDecoders;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationProvider;
+import org.springframework.security.oauth2.server.resource.authentication.JwtIssuerAuthenticationManagerResolver;
+import org.springframework.stereotype.Component;
 import org.springframework.web.cors.CorsConfiguration;
 
-import javax.servlet.http.HttpServletRequest;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 
-@EnableWebSecurity
+@Component
+@ConfigurationProperties(prefix = "config")
+class JWTIssuersProps {
+    private List<String> issuers;
+
+    // getter and setter
+    public List<String> getIssuers() {
+        return issuers;
+    }
+
+    public void setIssuers(List<String> issuers) {
+        this.issuers = issuers;
+    }
+}
+
+@Configuration
 public class JWTCustomSecurityConfiguration extends WebSecurityConfigurerAdapter {
 
     @Autowired
-    private AuthenticationManagerResolver<HttpServletRequest> authenticationManagerResolver;
+    private JWTIssuersProps props;
+
+    Map<String, AuthenticationManager> authenticationManagers = new HashMap<>();
+
+    JwtIssuerAuthenticationManagerResolver authenticationManagerResolver =
+            new JwtIssuerAuthenticationManagerResolver(authenticationManagers::get);
+
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+
+        List<String> propsIssuers = props.getIssuers();
+        propsIssuers.forEach(issuer -> addManager(authenticationManagers, issuer));
+
+        http.
+                // CORS configuration
+                cors().configurationSource(request -> {
+                    var cors = new CorsConfiguration();
+                    cors.setAllowedOrigins(List.of("http://localhost:3000"));
+                    cors.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+                    cors.setAllowedHeaders(List.of("*"));
+                    return cors;
+                })
+
+                .and()
+                .authorizeRequests()
+                .antMatchers("/actuator/**").permitAll()
+                .and()
+                .oauth2ResourceServer(oauth2ResourceServer -> {
+                    oauth2ResourceServer.authenticationManagerResolver(this.authenticationManagerResolver);
+                });
+    }
+
+    public void addManager(Map<String, AuthenticationManager> authenticationManagers, String issuer) {
+        JwtDecoder jwtDecoder = JwtDecoders.fromOidcIssuerLocation(issuer);
+        System.out.println("issuer = " + issuer);
+
+        JwtAuthenticationProvider authenticationProvider = new JwtAuthenticationProvider(jwtDecoder);
+        authenticationProvider.setJwtAuthenticationConverter(new MyJwtAuthenticationConverter());
+        authenticationManagers.put(issuer, authenticationProvider::authenticate);
+    }
 
     static class MyJwtAuthenticationConverter extends JwtAuthenticationConverter {
         @Override
@@ -38,54 +96,5 @@ public class JWTCustomSecurityConfiguration extends WebSecurityConfigurerAdapter
             }
             return authorities;
         }
-
-
-        /*
-        // from here: https://www.baeldung.com/spring-security-granted-authority-vs-role
-        private Collection<? extends GrantedAuthority> getAuthorities(
-                Collection<Role> roles) {
-            List<GrantedAuthority> authorities
-                    = new ArrayList<>();
-            for (Role role: roles) {
-                authorities.add(new SimpleGrantedAuthority(role.getName()));
-                role.getPrivileges().stream()
-                        .map(p -> new SimpleGrantedAuthority(p.getName()))
-                        .forEach(authorities::add);
-            }
-
-            return authorities;
-        }*/
-
     }
-
-    @Override
-    protected void configure(HttpSecurity http) throws Exception {
-        http.cors()
-                .configurationSource(request -> {
-                    var cors = new CorsConfiguration();
-                    cors.setAllowedOrigins(List.of("http://localhost:3000"));
-                    cors.setAllowedMethods(List.of("GET","POST", "PUT", "DELETE", "OPTIONS"));
-                    cors.setAllowedHeaders(List.of("*"));
-                    return cors;
-                })
-                .and()
-                .authorizeRequests()
-                .antMatchers("/actuator/**").permitAll()
-                .and()
-                .oauth2ResourceServer(
-                        oauth2 -> oauth2.jwt(jwt ->
-                                {
-                                    jwt.jwtAuthenticationConverter(new MyJwtAuthenticationConverter());
-                                })
-                                .authenticationManagerResolver(this.authenticationManagerResolver)
-                );
-/*
-                .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt ->
-                {
-                    jwt.jwtAuthenticationConverter(new MyJwtAuthenticationConverter());
-                }));
-*/
-    }
-
 }
-

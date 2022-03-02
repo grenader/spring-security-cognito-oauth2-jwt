@@ -2,4 +2,5 @@
 
 A sample project with Spring Securitty that reads JWT token and utilize method-level security. 
 This version of the project has been rewritten from Kotlin to Java
-It has been also extended to read idToken (id_token) not just access JWT token.
+This version understands several user pools (several issuers).
+The code has also been also extended to read idToken (id_token) not just access JWT token. The claims from idToken are added into Principal as 'details'
