@@ -36,6 +36,7 @@ public class MainController {
 
         String email = "";
         String phoneNumber = "";
+        String customId = "";
 
         try {
             // Adding more security reading:
@@ -63,6 +64,9 @@ public class MainController {
 
                     phoneNumber = IdClaims.get("phone_number");
                     System.out.println("phoneNumber = " + phoneNumber);
+
+                    customId = IdClaims.get("custom:customId") != null ? IdClaims.get("custom:customId") : "not-set";
+                    System.out.println("customId = " + customId);
                 }
 
             }
@@ -70,7 +74,7 @@ public class MainController {
             e.printStackTrace();
         }
 
-        return "I am an authenticated user! Phone number: "+phoneNumber+", email:"+email;
+        return "I am an authenticated user! Phone number: " + phoneNumber + ", email:" + email + ", customId:" + customId;
     }
 
 }
