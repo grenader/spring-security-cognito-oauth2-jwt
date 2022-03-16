@@ -1,15 +1,17 @@
 package com.grenader.cognito_oath2_jwt;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
-public class InterceptorConfiguration extends WebMvcConfigurerAdapter {
+public class InterceptorConfiguration implements WebMvcConfigurer {
 
-    @Autowired
-    private SecurityContextInterceptor securityContextInterceptor;
+    private final SecurityContextInterceptor securityContextInterceptor;
+
+    public InterceptorConfiguration(SecurityContextInterceptor securityContextInterceptor) {
+        this.securityContextInterceptor = securityContextInterceptor;
+    }
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {

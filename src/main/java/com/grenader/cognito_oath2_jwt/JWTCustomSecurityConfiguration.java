@@ -1,11 +1,9 @@
 package com.grenader.cognito_oath2_jwt;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.core.GrantedAuthority;
@@ -26,7 +24,6 @@ import java.util.*;
 class JWTIssuersProps {
     private List<String> issuers;
 
-    // getter and setter
     public List<String> getIssuers() {
         return issuers;
     }
@@ -39,13 +36,16 @@ class JWTIssuersProps {
 @Configuration
 public class JWTCustomSecurityConfiguration extends WebSecurityConfigurerAdapter {
 
-    @Autowired
-    private JWTIssuersProps props;
+    private final JWTIssuersProps props;
 
     Map<String, AuthenticationManager> authenticationManagers = new HashMap<>();
 
     JwtIssuerAuthenticationManagerResolver authenticationManagerResolver =
             new JwtIssuerAuthenticationManagerResolver(authenticationManagers::get);
+
+    public JWTCustomSecurityConfiguration(JWTIssuersProps props) {
+        this.props = props;
+    }
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
@@ -76,14 +76,16 @@ public class JWTCustomSecurityConfiguration extends WebSecurityConfigurerAdapter
         JwtDecoder jwtDecoder = JwtDecoders.fromOidcIssuerLocation(issuer);
         System.out.println("issuer = " + issuer);
 
+        final JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
+        jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(new MyJwtAuthenticationConverter());
+
         JwtAuthenticationProvider authenticationProvider = new JwtAuthenticationProvider(jwtDecoder);
-        authenticationProvider.setJwtAuthenticationConverter(new MyJwtAuthenticationConverter());
+        authenticationProvider.setJwtAuthenticationConverter(jwtAuthenticationConverter);
         authenticationManagers.put(issuer, authenticationProvider::authenticate);
     }
 
-    static class MyJwtAuthenticationConverter extends JwtAuthenticationConverter {
-        @Override
-        protected Collection<GrantedAuthority> extractAuthorities(final Jwt jwt) {
+    static class MyJwtAuthenticationConverter implements Converter<Jwt, Collection<GrantedAuthority>> {
+        public Collection<GrantedAuthority> convert(final Jwt jwt) {
             List<String> groups = jwt.getClaim("cognito:groups");
 
             System.out.println("User groups list.size =" + groups.size());
